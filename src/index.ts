@@ -29,9 +29,9 @@ const orbitControls = new OrbitControls(primaryCamera, renderer.domElement);
 //   RIGHT: THREE.MOUSE.PAN,
 // };
 orbitControls.enableDamping = true;
-orbitControls.enablePan = false;
-orbitControls.enableZoom = false;
-orbitControls.enableRotate = false;
+orbitControls.enablePan = true;
+orbitControls.enableZoom = true;
+orbitControls.enableRotate = true;
 orbitControls.minDistance = 5;
 orbitControls.maxDistance = 60;
 orbitControls.maxPolarAngle = Math.PI / 2 - 0.05; // prevent camera below ground
@@ -39,7 +39,7 @@ orbitControls.minPolarAngle = Math.PI / 4; // prevent top down view
 orbitControls.update();
 
 // RENDER TARGET SECTION
-const targetPlaneSize = { width: 6, height: 7 };
+const targetPlaneSize = { width: 8.5, height: 5 };
 const targetPlanePosition = { x: -5, y: targetPlaneSize.height / 2, z: 5 };
 const renderTargetWidth = targetPlaneSize.width * 512;
 const renderTargetHeight = targetPlaneSize.height * 512;
@@ -116,8 +116,9 @@ const secondaryMaterial = new THREE.MeshBasicMaterial({
   wireframe: true,
 });
 
-const mesh = new THREE.Mesh(geometry, secondaryMaterial);
-secondaryScene.add(mesh);
+const secondaryMesh = new THREE.Mesh(geometry, secondaryMaterial);
+
+secondaryScene.add(secondaryMesh);
 
 // REGULAR SCENE
 const primaryScene = new THREE.Scene();
@@ -140,38 +141,51 @@ primaryScene.background = new THREE.Color(0xa8def0);
   const ambientLight = new THREE.AmbientLight(color, 1);
   primaryScene.add(ambientLight);
 
-  new GLTFLoader().load("/glb/forest-ground.glb", function (gltf: GLTF) {
+  new GLTFLoader().load("/glb/booth.glb", function (gltf: GLTF) {
     gltf.scene.traverse(function (object: THREE.Object3D) {
       object.receiveShadow = true;
     });
     primaryScene.add(gltf.scene);
   });
-  new GLTFLoader().load("/glb/forest-trees.glb", function (gltf: GLTF) {
-    gltf.scene.traverse(function (object: THREE.Object3D) {
-      object.castShadow = true;
-    });
-    primaryScene.add(gltf.scene);
-  });
-  new GLTFLoader().load("/glb/arcade.gltf", function (gltf: GLTF) {
-    gltf.scene.traverse(function (object: THREE.Object3D) {
-      object.castShadow = true;
-    });
-    primaryScene.add(gltf.scene);
-  });
+  //   new GLTFLoader().load("/glb/forest-trees.glb", function (gltf: GLTF) {
+  //     gltf.scene.traverse(function (object: THREE.Object3D) {
+  //       object.castShadow = true;
+  //     });
+  //     primaryScene.add(gltf.scene);
+  //   });
+  //   new GLTFLoader().load(
+  //     "/glb/arcade.gltf",
+  //     function (gltf: GLTF) {
+  //       gltf.scene.traverse(function (object: THREE.Object3D) {
+  //         object.castShadow = true;
+  //       });
+  //       gltf.scene.position.y = 5;
+  //       primaryScene.add(gltf.scene);
+  //     },
+  //     function (xhr) {
+  //       console.log(xhr, "errerr");
+  //     },
+  //     function (err) {
+  //       console.log(err, "errerr");
+  //     }
+  //   );
 }
 
 const material = new THREE.MeshPhongMaterial({
   map: renderTarget.texture,
 });
+
 const targetPlane = new THREE.Mesh(
   new THREE.PlaneGeometry(targetPlaneSize.width, targetPlaneSize.height, 32),
   material
 );
+targetPlane.name = "secondary";
 targetPlane.rotation.y = -Math.PI / 4;
 
-targetPlane.position.y = targetPlanePosition.y;
-targetPlane.position.x = targetPlanePosition.x;
-targetPlane.position.z = targetPlanePosition.z;
+targetPlane.position.y = 5;
+targetPlane.position.x = 0;
+targetPlane.position.z = -16.6;
+targetPlane.rotation.y = 0;
 
 targetPlane.castShadow = true;
 primaryScene.add(targetPlane);
@@ -200,6 +214,34 @@ function onWindowResize() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 }
 window.addEventListener("resize", onWindowResize);
+
+renderer.domElement.addEventListener("mousedown", onMouseClick);
+
+function onMouseClick(event) {
+  // calculate mouse position in normalized device coordinates
+  const mouse = new THREE.Vector2();
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  // create a raycaster from the camera through the mouse position
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, primaryCamera);
+
+  // get intersecting objects
+  const intersects = raycaster.intersectObjects(primaryScene.children, true);
+
+  // do something with the intersected objects
+  if (intersects.length > 0) {
+    console.log("Intersected:", intersects[0].object);
+    if (intersects[0].object?.name === "secondary") {
+      orbitControls.enabled = false;
+      secOrbitControls.enabled = true;
+    } else {
+      orbitControls.enabled = true;
+      secOrbitControls.enabled = false;
+    }
+  }
+}
 
 function gameLoop() {
   const time = new Date().getTime();
